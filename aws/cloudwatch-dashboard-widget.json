@@ -1,0 +1,18 @@
+{
+    "widgets": [
+      {
+        "type": "metric",
+        "properties": {
+          "metrics": [
+            ["AWS/Lambda", "Invocations", { "stat": "Sum", "label": "Detector Invocations" }],
+            [".", "Errors", { "stat": "Sum", "label": "Errors" }],
+            [".", "Duration", { "stat": "Average", "label": "Avg Duration" }]
+          ],
+          "period": 300,
+          "stat": "Average",
+          "region": "us-east-1",
+          "title": "Event Detector Metrics"
+        }
+      }
+    ]
+  }
