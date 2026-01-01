@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { SYSTEM_PROMPT, USER_PROMPT_TEMPLATE } from './promptTemplates';
+import { SYSTEM_PROMPT, USER_PROMPT_TEMPLATE } from './promptTemplates.js';
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY

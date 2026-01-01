@@ -40,6 +40,53 @@ function shouldQueryNow() {
 }
 
 /**
+ * Converts AlphaVantage timestamp format to ISO 8601
+ * Input format: YYYYMMDDTHHmmss (e.g., "20251231T172712")
+ * Output format: YYYY-MM-DDTHH:mm:ss±HH:MM (e.g., "2025-12-31T17:27:12-05:00")
+ */
+function convertAlphaVantageTimestamp(alphaVantageTime) {
+  // Parse: YYYYMMDDTHHmmss
+  const year = alphaVantageTime.substring(0, 4);
+  const month = alphaVantageTime.substring(4, 6);
+  const day = alphaVantageTime.substring(6, 8);
+  const hour = alphaVantageTime.substring(9, 11);
+  const minute = alphaVantageTime.substring(11, 13);
+  const second = alphaVantageTime.substring(13, 15);
+
+  // Create date string in format that Date constructor can parse
+  const dateString = `${year}-${month}-${day}T${hour}:${minute}:${second}`;
+
+  // Create Date object (assuming UTC since AlphaVantage doesn't provide timezone)
+  const date = new Date(dateString + 'Z');
+
+  // Convert to target timezone and get ISO string with offset
+  const options = {
+    timeZone: TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+    timeZoneName: 'longOffset'
+  };
+
+  const formatter = new Intl.DateTimeFormat('en-US', options);
+  const parts = formatter.formatToParts(date);
+
+  const formatted = {};
+  parts.forEach(part => {
+    formatted[part.type] = part.value;
+  });
+
+  // Build ISO 8601 string with timezone offset
+  const isoString = `${formatted.year}-${formatted.month}-${formatted.day}T${formatted.hour}:${formatted.minute}:${formatted.second}${formatted.timeZoneName}`;
+
+  return isoString;
+}
+
+/**
  * Main exported function - queries Alpha Vantage only during scheduled times
  */
 export const getAlphaVantageNewsIfScheduled = async (tickers) => {
@@ -110,7 +157,7 @@ async function queryTickerNews(ticker) {
       ticker: ticker, // We know the ticker since we queried individually
       title: article.title,
       url: article.url,
-      time_published: article.time_published,
+      time_published: convertAlphaVantageTimestamp(article.time_published),
       summary: article.summary,
       sentiment: parseFloat(article.overall_sentiment_score),
       source: article.source

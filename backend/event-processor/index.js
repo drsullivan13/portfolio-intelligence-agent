@@ -1,10 +1,10 @@
-import { generateEmbedding } from './rag/embeddings';
-import { queryPinecone, upsertToPinecone } from './rag/pinecone';
-import { buildContextPrompt } from './rag/contextBuilder';
-import { analyzeWithClaude } from './analysis/claudeClient';
-import { updateDynamoDB } from './storage/dynamodb';
-import { uploadToS3 } from './storage/s3';
-import { sendSlackNotification } from './notifications/slack';
+import { generateEmbedding } from './rag/embeddings.js';
+import { queryPinecone, upsertToPinecone } from './rag/pinecone.js';
+import { buildContextPrompt } from './rag/contextBuilder.js';
+import { analyzeWithClaude } from './analysis/claudeClient.js';
+import { updateDynamoDB } from './storage/dynamodb.js';
+import { uploadToS3 } from './storage/s3.js';
+import { sendSlackNotification } from './notifications/slack.js';
 
 export const handler = async (event) => {
   console.log('='.repeat(80));

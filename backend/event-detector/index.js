@@ -82,10 +82,13 @@ export const handler = async (_event) => {
             ticker: { S: filing.ticker },
             event_type: { S: 'SEC_FILING' },
             timestamp: { S: filing.filingDate },
-            headline: { S: `8-K Filing: ${filing.formType}` },
+            headline: { S: filing.headline || `8-K Filing: ${filing.formType}` },
             url: { S: filing.url },
             detected_at: { S: new Date().toISOString() },
-            status: { S: 'PENDING_ANALYSIS' }
+            status: { S: 'PENDING_ANALYSIS' },
+            ...(filing.items && { items_reported: { S: filing.items.join(', ') } }),
+            ...(filing.primaryItem && { primary_item: { S: filing.primaryItem } }),
+            ...(filing.summary && { content_summary: { S: filing.summary } })
           }
         }));
         
@@ -96,7 +99,11 @@ export const handler = async (_event) => {
           formType: filing.formType,
           filingDate: filing.filingDate,
           url: filing.url,
-          timestamp: filing.filingDate
+          timestamp: filing.filingDate,
+          headline: filing.headline || `8-K Filing: ${filing.formType}`,
+          summary: filing.summary || '',
+          items: filing.items || [],
+          primaryItem: filing.primaryItem || ''
         });
         
         newEvents.push(eventId);
