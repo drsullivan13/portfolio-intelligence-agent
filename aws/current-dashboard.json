@@ -1,0 +1,78 @@
+{
+    "widgets": [
+      {
+        "type": "metric",
+        "properties": {
+          "metrics": [
+            [
+              "AWS/Lambda",
+              "Invocations",
+              {
+                "stat": "Sum",
+                "label": "Detector Invocations"
+              }
+            ],
+            [
+              ".",
+              "Errors",
+              {
+                "stat": "Sum",
+                "label": "Errors"
+              }
+            ],
+            [
+              ".",
+              "Duration",
+              {
+                "stat": "Average",
+                "label": "Avg Duration"
+              }
+            ]
+          ],
+          "period": 300,
+          "stat": "Average",
+          "region": "us-east-1",
+          "title": "Event Detector Metrics"
+        }
+      },
+      {
+        "type": "metric",
+        "properties": {
+          "metrics": [
+            ["AWS/Lambda", "Invocations", "FunctionName", "event-detector", {"stat": "Sum", "label": "Detector Invocations"}],
+            ["AWS/Lambda", "Invocations", "FunctionName", "event-processor", {"stat": "Sum", "label": "Processor Invocations"}],
+            ["AWS/Lambda", "Errors", "FunctionName", "event-detector", {"stat": "Sum", "label": "Detector Errors"}],
+            ["AWS/Lambda", "Errors", "FunctionName", "event-processor", {"stat": "Sum", "label": "Processor Errors"}]
+          ],
+          "period": 300,
+          "stat": "Sum",
+          "region": "us-east-1",
+          "title": "Lambda Invocations & Errors",
+          "yAxis": {
+            "left": {
+              "min": 0
+            }
+          }
+        }
+      },
+      {
+        "type": "metric",
+        "properties": {
+          "metrics": [
+            ["AWS/Lambda", "Duration", "FunctionName", "event-detector", {"stat": "Average", "label": "Detector Avg Duration"}],
+            ["AWS/Lambda", "Duration", "FunctionName", "event-processor", {"stat": "Average", "label": "Processor Avg Duration"}],
+            ["AWS/Lambda", "Duration", "FunctionName", "event-processor", {"stat": "Maximum", "label": "Processor Max Duration"}]
+          ],
+          "period": 300,
+          "stat": "Average",
+          "region": "us-east-1",
+          "title": "Processing Time (ms)",
+          "yAxis": {
+            "left": {
+              "label": "Milliseconds"
+            }
+          }
+        }
+      }
+    ]
+  }
