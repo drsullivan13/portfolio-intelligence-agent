@@ -81,7 +81,9 @@ function convertAlphaVantageTimestamp(alphaVantageTime) {
   });
 
   // Build ISO 8601 string with timezone offset
-  const isoString = `${formatted.year}-${formatted.month}-${formatted.day}T${formatted.hour}:${formatted.minute}:${formatted.second}${formatted.timeZoneName.replace('GMT', '')}`;
+  // Remove "GMT" prefix from timezone (e.g., "GMT-05:00" -> "-05:00")
+  const timezoneOffset = formatted.timeZoneName.substring(3);
+  const isoString = `${formatted.year}-${formatted.month}-${formatted.day}T${formatted.hour}:${formatted.minute}:${formatted.second}${timezoneOffset}`;
 
   return isoString;
 }
