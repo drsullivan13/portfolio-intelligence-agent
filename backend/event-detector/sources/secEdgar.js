@@ -1,5 +1,5 @@
 import axios from 'axios';
-import * as cheerio from 'cheerio';
+import { parse } from 'node-html-parser';
 
 // Map 8-K Item numbers to human-readable descriptions
 const ITEM_DESCRIPTIONS = {
@@ -158,7 +158,7 @@ async function fetchFilingIndex(cik, accessionNumber) {
 
 // Parse filing index to extract document links
 function parseFilingDocuments(indexHtml) {
-  const $ = cheerio.load(indexHtml);
+  const root = parse(indexHtml);
   const documents = {
     primaryDoc: null,
     exhibit991: null,
@@ -166,11 +166,13 @@ function parseFilingDocuments(indexHtml) {
   };
 
   // Find the documents table
-  $('table tr').each((i, row) => {
-    const cells = $(row).find('td');
+  const rows = root.querySelectorAll('table tr');
+  rows.forEach(row => {
+    const cells = row.querySelectorAll('td');
     if (cells.length >= 3) {
-      const type = $(cells[3]).text().trim(); // Type column
-      const documentLink = $(cells[2]).find('a').attr('href'); // Document column
+      const type = cells[3].text.trim(); // Type column
+      const link = cells[2].querySelector('a');
+      const documentLink = link?.getAttribute('href'); // Document column
 
       if (documentLink) {
         const filename = documentLink.split('/').pop();
@@ -195,15 +197,15 @@ function parseFilingDocuments(indexHtml) {
 
   // If no primary document found, try to get the first .htm file
   if (!documents.primaryDoc) {
-    $('table tr').each((i, row) => {
-      const cells = $(row).find('td');
+    rows.forEach(row => {
+      const cells = row.querySelectorAll('td');
       if (cells.length >= 3) {
-        const documentLink = $(cells[2]).find('a').attr('href');
+        const link = cells[2].querySelector('a');
+        const documentLink = link?.getAttribute('href');
         if (documentLink && documentLink.endsWith('.htm')) {
           const filename = documentLink.split('/').pop();
-          if (!filename.includes('index')) {
+          if (!filename.includes('index') && !documents.primaryDoc) {
             documents.primaryDoc = filename;
-            return false; // break
           }
         }
       }
@@ -228,13 +230,13 @@ async function fetchDocument(url) {
 
 // Parse exhibit content (e.g., EX-99.1 press releases)
 function parseExhibitContent(htmlContent) {
-  const $ = cheerio.load(htmlContent);
+  const root = parse(htmlContent);
 
   // Extract headline from title or first heading
-  let headline = $('title').text().trim();
+  let headline = root.querySelector('title')?.text.trim() || '';
   if (!headline || headline.toLowerCase().includes('exhibit')) {
-    headline = $('h1').first().text().trim() ||
-               $('b').first().text().trim() ||
+    headline = root.querySelector('h1')?.text.trim() ||
+               root.querySelector('b')?.text.trim() ||
                'Press Release';
   }
 
@@ -246,10 +248,10 @@ function parseExhibitContent(htmlContent) {
 
   // Extract body content
   // Remove script, style, and other non-content elements
-  $('script, style, meta, link').remove();
+  root.querySelectorAll('script, style, meta, link').forEach(el => el.remove());
 
   // Get text content from body or main container
-  let content = $('body').text() || $.text();
+  let content = root.querySelector('body')?.text || root.text;
 
   // Clean up whitespace
   content = content
@@ -266,15 +268,15 @@ function parseExhibitContent(htmlContent) {
 
 // Parse 8-K Items and content from primary document
 function parseItemsFrom8K(htmlContent) {
-  const $ = cheerio.load(htmlContent);
+  const root = parse(htmlContent);
   const items = [];
   const content = {};
 
   // Remove script, style elements
-  $('script, style, meta, link').remove();
+  root.querySelectorAll('script, style, meta, link').forEach(el => el.remove());
 
   // Get all text content
-  const fullText = $('body').text() || $.text();
+  const fullText = root.querySelector('body')?.text || root.text;
   const cleanText = fullText.replace(/\s+/g, ' ');
 
   // Find all Item markers (e.g., "Item 2.02", "Item 5.02")
