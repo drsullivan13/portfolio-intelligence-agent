@@ -25,7 +25,15 @@ async function loadAllWatchlists() {
     // Parse each user's watchlist
     for (const item of result.Items) {
       const userId = item.user_id.S;
-      const tickers = item.tickers.L.map(ticker => ticker.S);
+      // Handle both old format (simple strings) and new format (maps with symbol field)
+      const tickers = item.tickers.L.map(ticker => {
+        // New format: {M: {symbol: {S: "TSLA"}, name: {S: "Tesla"}, status: {S: "Active"}}}
+        if (ticker.M && ticker.M.symbol) {
+          return ticker.M.symbol.S;
+        }
+        // Old format: {S: "TSLA"}
+        return ticker.S;
+      });
 
       watchlists.set(userId, tickers);
       console.log(`Loaded watchlist for ${userId}: ${tickers.join(', ')}`);
@@ -61,7 +69,15 @@ async function loadUserWatchlist(userId) {
       return null;
     }
 
-    const tickers = result.Item.tickers.L.map(ticker => ticker.S);
+    // Handle both old format (simple strings) and new format (maps with symbol field)
+    const tickers = result.Item.tickers.L.map(ticker => {
+      // New format: {M: {symbol: {S: "TSLA"}, name: {S: "Tesla"}, status: {S: "Active"}}}
+      if (ticker.M && ticker.M.symbol) {
+        return ticker.M.symbol.S;
+      }
+      // Old format: {S: "TSLA"}
+      return ticker.S;
+    });
     console.log(`Watchlist for ${userId}: ${tickers.join(', ')}`);
 
     return tickers;
