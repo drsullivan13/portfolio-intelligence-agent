@@ -5,6 +5,8 @@ import { getSECFilings } from './sources/secEdgar.js';
 import { generateEventId, eventExists } from './utils/deduplication.js';
 import { publishToSNS } from './utils/snsPublisher.js';
 import { loadAllWatchlists } from './utils/watchlists.js';
+import { aggregateTickersFromWatchlists } from './utils/tickerAggregator.js';
+import { createUserEventRelationships } from './utils/userEventRelationships.js';
 
 const { AWS_REGION, WATCHLIST: watchlistEnv } = process.env;
 const dynamoDB = new DynamoDBClient({ region: AWS_REGION });
@@ -28,46 +30,56 @@ export const handler = async (_event) => {
 
     console.log(`Processing events for ${userWatchlists.size} user(s)`);
 
-    // Process events for each user
-    for (const [userId, tickers] of userWatchlists) {
-      console.log(`\n=== Processing user: ${userId} ===`);
-      console.log(`Tickers: ${tickers.join(', ')}`);
+    // Aggregate tickers across all users to process each ticker only once
+    const tickerToUsers = aggregateTickersFromWatchlists(userWatchlists);
+    console.log(`\n=== Processing ${tickerToUsers.size} unique tickers ===`);
+
+    // Process each ticker ONCE, regardless of how many users watch it
+    for (const [ticker, userIds] of tickerToUsers) {
+      console.log(`\nProcessing ${ticker} for ${userIds.size} user(s): ${Array.from(userIds).join(', ')}`);
 
       // 1. Check Alpha Vantage News
       console.log('Checking Alpha Vantage for news...');
-      const newsEvents = await getAlphaVantageNews(tickers);
-      console.log(`Alpha Vantage returned ${newsEvents.length} articles`);
-    
+      const newsEvents = await getAlphaVantageNews([ticker]);
+      console.log(`Alpha Vantage returned ${newsEvents.length} articles for ${ticker}`);
+
       for (const newsEvent of newsEvents) {
         const eventId = generateEventId(newsEvent.url, newsEvent.time_published);
 
         const exists = await eventExists(dynamoDB, eventId);
 
         if (!exists) {
-          console.log(`New news event found: ${eventId} for user: ${userId}`);
+          console.log(`New news event found: ${eventId} (${userIds.size} watchers)`);
 
-          // Store in DynamoDB to mark as seen
+          // Store event ONCE in portfolio-events (no user_id, add watcher_count)
           await dynamoDB.send(new PutItemCommand({
             TableName: 'portfolio-events',
             Item: {
               event_id: { S: eventId },
-              user_id: { S: userId },
               ticker: { S: newsEvent.ticker },
               event_type: { S: 'NEWS' },
               timestamp: { S: newsEvent.time_published },
               headline: { S: newsEvent.title },
               url: { S: newsEvent.url },
               sentiment_score: { N: newsEvent.sentiment.toString() },
+              watcher_count: { N: userIds.size.toString() },
               detected_at: { S: new Date().toISOString() },
               status: { S: 'PENDING_ANALYSIS' }
-            }
+            },
+            ConditionExpression: 'attribute_not_exists(event_id)'
           }));
-        
-          // Publish to SNS for processing
+
+          // Create user-event relationships for ALL watchers
+          await createUserEventRelationships(dynamoDB, eventId, userIds, {
+            ticker: newsEvent.ticker,
+            timestamp: newsEvent.time_published
+          });
+
+          // Publish to SNS ONCE with array of all watching users
           await publishToSNS(sns, {
             eventId,
             eventType: 'NEWS',
-            userId,
+            userIds: Array.from(userIds),
             ticker: newsEvent.ticker,
             headline: newsEvent.title,
             url: newsEvent.url,
@@ -82,38 +94,48 @@ export const handler = async (_event) => {
 
       // 2. Check SEC EDGAR Filings
       console.log('Checking SEC EDGAR for 8-K filings...');
-      const filingEvents = await getSECFilings(tickers);
-    
+      const filingEvents = await getSECFilings([ticker]);
+      console.log(`SEC EDGAR returned ${filingEvents.length} filings for ${ticker}`);
+
       for (const filing of filingEvents) {
         const eventId = filing.accessionNumber;
 
         const exists = await eventExists(dynamoDB, eventId);
 
         if (!exists) {
-          console.log(`New SEC filing found: ${eventId} for user: ${userId}`);
+          console.log(`New SEC filing found: ${eventId} (${userIds.size} watchers)`);
 
+          // Store event ONCE in portfolio-events (no user_id, add watcher_count)
           await dynamoDB.send(new PutItemCommand({
             TableName: 'portfolio-events',
             Item: {
               event_id: { S: eventId },
-              user_id: { S: userId },
               ticker: { S: filing.ticker },
               event_type: { S: 'SEC_FILING' },
               timestamp: { S: filing.filingDate },
               headline: { S: filing.headline || `8-K Filing: ${filing.formType}` },
               url: { S: filing.url },
+              watcher_count: { N: userIds.size.toString() },
               detected_at: { S: new Date().toISOString() },
               status: { S: 'PENDING_ANALYSIS' },
               ...(filing.items && { items_reported: { S: filing.items.join(', ') } }),
               ...(filing.primaryItem && { primary_item: { S: filing.primaryItem } }),
               ...(filing.summary && { content_summary: { S: filing.summary } })
-            }
+            },
+            ConditionExpression: 'attribute_not_exists(event_id)'
           }));
-        
+
+          // Create user-event relationships for ALL watchers
+          await createUserEventRelationships(dynamoDB, eventId, userIds, {
+            ticker: filing.ticker,
+            timestamp: filing.filingDate
+          });
+
+          // Publish to SNS ONCE with array of all watching users
           await publishToSNS(sns, {
             eventId,
             eventType: 'SEC_FILING',
-            userId,
+            userIds: Array.from(userIds),
             ticker: filing.ticker,
             formType: filing.formType,
             filingDate: filing.filingDate,

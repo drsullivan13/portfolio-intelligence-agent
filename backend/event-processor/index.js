@@ -15,10 +15,14 @@ export const handler = async (event) => {
     // Parse SNS message
     const snsRecord = event.Records[0];
     const snsMessage = JSON.parse(snsRecord.Sns.Message);
-    
+
+    // NEW: userIds is now an array (not single userId)
+    const userIds = snsMessage.userIds || [];
+
     console.log('Processing event:', snsMessage.eventId);
     console.log('Ticker:', snsMessage.ticker);
     console.log('Type:', snsMessage.eventType);
+    console.log('Watchers:', userIds.join(', '));
     
     const startTime = Date.now();
     
