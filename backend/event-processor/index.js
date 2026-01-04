@@ -5,6 +5,7 @@ import { analyzeWithClaude } from './analysis/claudeClient.js';
 import { updateDynamoDB } from './storage/dynamodb.js';
 import { uploadToS3 } from './storage/s3.js';
 import { sendSlackNotification } from './notifications/slack.js';
+import { fetchUserSettings } from './utils/userSettings.js';
 
 export const handler = async (event) => {
   console.log('='.repeat(80));
@@ -64,10 +65,14 @@ export const handler = async (event) => {
     // Step 7: Upload full report to S3
     console.log('\n--- STEP 7: Archive to S3 ---');
     await uploadToS3(snsMessage.eventId, snsMessage, analysis);
-    
-    // Step 8: Send Slack notification
-    console.log('\n--- STEP 8: Send Notification ---');
-    await sendSlackNotification(snsMessage, analysis);
+
+    // Step 8: Fetch user settings
+    console.log('\n--- STEP 8: Fetch User Settings ---');
+    const userSettings = await fetchUserSettings(userIds);
+
+    // Step 9: Send Slack notifications
+    console.log('\n--- STEP 9: Send Notifications ---');
+    await sendSlackNotification(snsMessage, analysis, userSettings);
     
     const processingTime = Date.now() - startTime;
     console.log('\n' + '='.repeat(80));

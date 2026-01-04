@@ -1,0 +1,15 @@
+{
+  "name": "event-detector-backfill",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Backfills existing events and triggers immediate detection for new tickers",
+  "main": "index.js",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.958.0",
+    "@aws-sdk/client-sns": "^3.958.0",
+    "axios": "^1.6.0",
+    "node-html-parser": "^6.1.13",
+    "crypto": "^1.0.1",
+    "xml2js": "^0.6.0"
+  }
+}
